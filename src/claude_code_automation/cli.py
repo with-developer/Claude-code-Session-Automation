@@ -31,17 +31,25 @@ def schedule(times):
 
 
 @main.command()
-def start():
+@click.option('--dry-run', is_flag=True, help='Test mode - simulate session start without running claude-code')
+def start(dry_run):
     """Manually start a Claude Code session"""
     setup_logger()
     session_manager = SessionManager()
-    success = session_manager.start_session()
     
-    if success:
-        click.echo("✓ Claude Code session started successfully")
+    if dry_run:
+        success = session_manager.test_session_start()
+        if success:
+            click.echo("✓ [DRY RUN] Claude Code session would start successfully")
+        else:
+            click.echo("✗ [DRY RUN] Claude Code session would fail", err=True)
     else:
-        click.echo("✗ Failed to start Claude Code session", err=True)
-        exit(1)
+        success = session_manager.start_session()
+        if success:
+            click.echo("✓ Claude Code session started successfully")
+        else:
+            click.echo("✗ Failed to start Claude Code session", err=True)
+            exit(1)
 
 
 @main.command()
