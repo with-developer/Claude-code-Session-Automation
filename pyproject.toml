@@ -1,0 +1,47 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "claude-code-automation"
+version = "0.1.0"
+description = "Claude Code rate limit 회피를 위한 자동 세션 시작 도구"
+readme = "README.md"
+requires-python = ">=3.8"
+license = "MIT"
+authors = [
+    { name = "weakness" }
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "click>=8.0.0",
+    "croniter>=1.3.0",
+    "python-crontab>=2.6.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/weakness/claude-code-automation"
+Repository = "https://github.com/weakness/claude-code-automation"
+
+[project.scripts]
+claude-code-automation = "claude_code_automation.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/claude_code_automation"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/README.md",
+    "/LICENSE",
+]
