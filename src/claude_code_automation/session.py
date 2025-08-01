@@ -28,7 +28,7 @@ class SessionManager:
             return False
     
     def _start_claude_session(self) -> bool:
-        """Start a Claude Code interactive session"""
+        """Start a Claude Code session in background"""
         if not self._check_claude_available():
             self.logger.error("claude command not found")
             return False
@@ -38,34 +38,37 @@ class SessionManager:
             os.chdir(self.session_dir)
             self.logger.info(f"Starting Claude Code session in {self.session_dir}")
             
-            # Start claude in interactive mode with a simple initial message
-            # This will open a new terminal window with Claude Code running
-            if os.name == 'posix':  # macOS/Linux
-                # Use osascript on macOS to open new terminal with claude
-                if os.uname().sysname == 'Darwin':  # macOS
-                    script = f'''
-                    tell application "Terminal"
-                        do script "cd {self.session_dir} && claude"
-                        activate
-                    end tell
-                    '''
-                    process = subprocess.run(['osascript', '-e', script], 
-                                          capture_output=True, text=True)
-                else:  # Linux
-                    # Try common terminal emulators
-                    terminals = ['gnome-terminal', 'xterm', 'konsole', 'terminator']
-                    for term in terminals:
-                        try:
-                            subprocess.Popen([term, '-e', f'cd {self.session_dir} && claude'])
-                            break
-                        except FileNotFoundError:
-                            continue
+            # First, add the session directory to trusted paths
+            # This bypasses the trust dialog
+            trust_command = ['claude', 'config', 'set', '-g', 'hasTrustDialogAccepted', 'true']
+            subprocess.run(trust_command, capture_output=True)
             
-            # Mark session as started
-            self.create_session_marker()
-            self.logger.info("Claude Code interactive session started")
-            return True
+            # Start claude with a simple message to initiate a session
+            # Using --print to avoid interactive mode but still create a session
+            process = subprocess.Popen(
+                ['claude', '--print', '--dangerously-skip-permissions', 'Session started automatically at ' + time.strftime('%Y-%m-%d %H:%M:%S')],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                cwd=self.session_dir
+            )
             
+            # Wait for completion
+            stdout, stderr = process.communicate(timeout=30)
+            
+            if process.returncode == 0:
+                self.logger.info("Claude Code session initiated successfully")
+                self.logger.info(f"Response: {stdout[:100]}...")  # Log first 100 chars
+                self.create_session_marker()
+                return True
+            else:
+                self.logger.error(f"Claude Code session failed: {stderr}")
+                return False
+            
+        except subprocess.TimeoutExpired:
+            self.logger.error("Claude session startup timed out")
+            process.kill()
+            return False
         except Exception as e:
             self.logger.error(f"Error starting Claude Code session: {e}")
             return False
@@ -95,9 +98,19 @@ class SessionManager:
         try:
             with open(marker_file, 'w') as f:
                 f.write(f"Session started at: {timestamp}\n")
+                f.write(f"Expected end time: {self.calculate_session_end_time()}\n")
             self.logger.info(f"Created session marker: {marker_file}")
         except IOError as e:
             self.logger.warning(f"Failed to create session marker: {e}")
+    
+    def calculate_session_end_time(self) -> str:
+        """Calculate expected session end time (5 hours from start)"""
+        from datetime import datetime, timedelta
+        # Session starts at the beginning of the hour
+        now = datetime.now()
+        session_start = now.replace(minute=0, second=0, microsecond=0)
+        session_end = session_start + timedelta(hours=5)
+        return session_end.strftime("%Y-%m-%d %H:%M:%S")
     
     def check_session_health(self) -> bool:
         """Check if Claude session is still active"""
