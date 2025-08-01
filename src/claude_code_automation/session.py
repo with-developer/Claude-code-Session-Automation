@@ -28,7 +28,7 @@ class SessionManager:
             return False
     
     def _start_claude_session(self) -> bool:
-        """Start a Claude session in the session directory"""
+        """Start a Claude Code interactive session"""
         if not self._check_claude_available():
             self.logger.error("claude command not found")
             return False
@@ -36,33 +36,38 @@ class SessionManager:
         try:
             # Change to session directory
             os.chdir(self.session_dir)
-            self.logger.info(f"Starting Claude session in {self.session_dir}")
+            self.logger.info(f"Starting Claude Code session in {self.session_dir}")
             
-            # Start claude with a simple greeting to initiate the session
-            process = subprocess.Popen(
-                ['claude', '--print', 'Hello! Starting automated session.'],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                cwd=self.session_dir
-            )
+            # Start claude in interactive mode with a simple initial message
+            # This will open a new terminal window with Claude Code running
+            if os.name == 'posix':  # macOS/Linux
+                # Use osascript on macOS to open new terminal with claude
+                if os.uname().sysname == 'Darwin':  # macOS
+                    script = f'''
+                    tell application "Terminal"
+                        do script "cd {self.session_dir} && claude"
+                        activate
+                    end tell
+                    '''
+                    process = subprocess.run(['osascript', '-e', script], 
+                                          capture_output=True, text=True)
+                else:  # Linux
+                    # Try common terminal emulators
+                    terminals = ['gnome-terminal', 'xterm', 'konsole', 'terminator']
+                    for term in terminals:
+                        try:
+                            subprocess.Popen([term, '-e', f'cd {self.session_dir} && claude'])
+                            break
+                        except FileNotFoundError:
+                            continue
             
-            # Wait for completion
-            stdout, stderr = process.communicate(timeout=30)
+            # Mark session as started
+            self.create_session_marker()
+            self.logger.info("Claude Code interactive session started")
+            return True
             
-            if process.returncode == 0:
-                self.logger.info("Claude session started successfully")
-                return True
-            else:
-                self.logger.error(f"Claude session failed: {stderr}")
-                return False
-                
-        except subprocess.TimeoutExpired:
-            self.logger.error("Claude session startup timed out")
-            process.kill()
-            return False
         except Exception as e:
-            self.logger.error(f"Error starting Claude session: {e}")
+            self.logger.error(f"Error starting Claude Code session: {e}")
             return False
     
     def start_session(self) -> bool:
