@@ -52,7 +52,30 @@ echo ""
 # Run local integration tests with timeout
 timeout_duration=60  # 60 seconds max
 
-if timeout ${timeout_duration} python -m pytest test/test_local_integration.py -v --tb=short; then
+# Use gtimeout on macOS if available, otherwise fallback to direct execution
+if command -v gtimeout &> /dev/null; then
+    timeout_cmd="gtimeout ${timeout_duration}"
+elif command -v timeout &> /dev/null; then
+    timeout_cmd="timeout ${timeout_duration}"
+else
+    timeout_cmd=""
+fi
+
+if [ -n "$timeout_cmd" ]; then
+    if $timeout_cmd python -m pytest test/test_local_integration.py -v --tb=short; then
+        test_result=0
+    else
+        test_result=$?
+    fi
+else
+    if python -m pytest test/test_local_integration.py -v --tb=short; then
+        test_result=0
+    else
+        test_result=$?
+    fi
+fi
+
+if [ $test_result -eq 0 ]; then
     echo -e "${GREEN}✅ All local integration tests passed!${NC}"
     echo "   → Claude Code is accessible and working"
     echo "   → Session management functions properly"
