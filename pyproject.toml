@@ -39,8 +39,8 @@ test = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/with-developer/claude-code-automation"
-Repository = "https://github.com/with-developer/claude-code-automation"
+Homepage = "https://github.com/with-developer/Claude-code-Session-Automation"
+Repository = "https://github.com/with-developer/Claude-code-Session-Automation"
 
 [project.scripts]
 claude-code-automation = "src.simple_cli:main"

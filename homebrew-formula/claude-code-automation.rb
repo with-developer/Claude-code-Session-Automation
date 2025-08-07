@@ -1,7 +1,7 @@
 class ClaudeCodeAutomation < Formula
   desc "Automated session manager for Claude Code to bypass rate limits"
-  homepage "https://github.com/with-developer/claude-code-automation"
-  url "https://github.com/with-developer/claude-code-automation/archive/v0.1.0.tar.gz"
+  homepage "https://github.com/with-developer/Claude-code-Session-Automation"
+  url "https://github.com/with-developer/Claude-code-Session-Automation/archive/v0.1.0.tar.gz"
   sha256 "YOUR_SHA256_HERE"
   license "MIT"
 
