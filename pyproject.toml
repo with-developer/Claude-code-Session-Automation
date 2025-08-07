@@ -23,21 +23,17 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
-dependencies = [
-    "click>=8.0.0",
-    "croniter>=1.3.0",
-    "python-crontab>=2.6.0",
-]
+dependencies = []
 
 [project.urls]
 Homepage = "https://github.com/with-developer/claude-code-automation"
 Repository = "https://github.com/with-developer/claude-code-automation"
 
 [project.scripts]
-claude-code-automation = "claude_code_automation.simple_cli:main"
+claude-code-automation = "src.simple_cli:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/claude_code_automation"]
+packages = ["src"]
 
 [tool.hatch.build.targets.sdist]
 include = [

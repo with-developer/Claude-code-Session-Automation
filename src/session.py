@@ -4,8 +4,8 @@ import subprocess
 import os
 import time
 from pathlib import Path
-from .config import ConfigManager
-from .logger import get_logger
+from src.config import ConfigManager
+from src.logger import get_logger
 
 
 class SessionManager:

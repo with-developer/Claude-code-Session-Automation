@@ -5,7 +5,7 @@ import subprocess
 import plistlib
 from pathlib import Path
 from typing import List, Optional
-from .logger import get_logger
+from src.logger import get_logger
 
 
 class LaunchAgentManager:

@@ -3,9 +3,9 @@
 
 import sys
 import platform
-from .session import SessionManager
-from .logger import setup_logger
-from .launchagent import LaunchAgentManager
+from src.session import SessionManager
+from src.logger import setup_logger
+from src.launchagent import LaunchAgentManager
 
 
 def main():
