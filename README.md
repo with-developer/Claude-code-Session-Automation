@@ -76,6 +76,12 @@ claude-code-automation start
 # 현재 상태 확인
 claude-code-automation status
 
+# 로그 확인
+claude-code-automation logs app          # 애플리케이션 로그 (기본 50줄)
+claude-code-automation logs launch       # LaunchAgent 출력 로그
+claude-code-automation logs error        # LaunchAgent 에러 로그
+claude-code-automation logs app 100      # 애플리케이션 로그 100줄
+
 # 도움말 보기
 claude-code-automation help
 ```

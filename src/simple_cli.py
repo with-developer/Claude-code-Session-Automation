@@ -26,6 +26,8 @@ def main():
         handle_start()
     elif command == 'status':
         handle_status()
+    elif command == 'logs':
+        handle_logs(sys.argv[2:] if len(sys.argv) > 2 else [])
     elif command in ['-h', '--help', 'help']:
         print_help()
     else:
@@ -44,11 +46,15 @@ def print_help():
     print("  claude-code-automation clear                         Clear all scheduled sessions")
     print("  claude-code-automation start                         Manually start a session")
     print("  claude-code-automation status                        Show current status")
+    print("  claude-code-automation logs [type] [lines]           Show logs (app, launch, error)")
     print("  claude-code-automation help                          Show this help")
     print()
     print("Examples:")
     print("  claude-code-automation schedule 14:30 16:00         Schedule at 2:30 PM and 4:00 PM")
     print("  claude-code-automation schedule 1430 1600           Schedule at 2:30 PM and 4:00 PM")
+    print("  claude-code-automation logs app 50                  Show last 50 lines of app logs")
+    print("  claude-code-automation logs launch                  Show LaunchAgent output logs")
+    print("  claude-code-automation logs error                   Show LaunchAgent error logs")
 
 
 def handle_schedule(times):
@@ -179,6 +185,77 @@ def handle_status():
         print(content)
     else:
         print("\nNo active session")
+
+
+def handle_logs(args):
+    """Handle logs command"""
+    import os
+    import subprocess
+    from pathlib import Path
+    
+    # Default values
+    log_type = 'app'  # app, launch, error
+    lines = 50
+    
+    # Parse arguments
+    if len(args) >= 1:
+        log_type = args[0].lower()
+    if len(args) >= 2:
+        try:
+            lines = int(args[1])
+        except ValueError:
+            print(f"Error: Invalid line count '{args[1]}'")
+            sys.exit(1)
+    
+    # Validate log type
+    if log_type not in ['app', 'launch', 'error']:
+        print(f"Error: Invalid log type '{log_type}'")
+        print("Valid types: app, launch, error")
+        sys.exit(1)
+    
+    # Determine log file path
+    if log_type == 'app':
+        log_path = Path.home() / ".config/claude-code-automation/logs/claude-code-automation.log"
+        log_name = "Application logs"
+    elif log_type == 'launch':
+        log_path = Path.home() / "Library/Logs/claude-code-automation.out.log"
+        log_name = "LaunchAgent output logs"
+    else:  # error
+        log_path = Path.home() / "Library/Logs/claude-code-automation.err.log"
+        log_name = "LaunchAgent error logs"
+    
+    print(f"📋 {log_name} (last {lines} lines)")
+    print("=" * 60)
+    
+    # Check if log file exists
+    if not log_path.exists():
+        print(f"⚠️  Log file not found: {log_path}")
+        print("   No logs have been created yet or the service hasn't run.")
+        return
+    
+    # Show logs using tail
+    try:
+        result = subprocess.run(
+            ['tail', '-n', str(lines), str(log_path)],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        
+        if result.stdout.strip():
+            print(result.stdout)
+        else:
+            print("📝 Log file is empty")
+            
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Failed to read log file: {e}")
+        sys.exit(1)
+    except FileNotFoundError:
+        print("❌ 'tail' command not found")
+        sys.exit(1)
+    
+    print("\n" + "=" * 60)
+    print(f"💡 To follow logs in real-time: tail -f {log_path}")
 
 
 if __name__ == '__main__':
