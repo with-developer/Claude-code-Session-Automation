@@ -25,6 +25,19 @@ classifiers = [
 ]
 dependencies = []
 
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0", 
+    "black>=22.0.0",
+    "flake8>=5.0.0",
+    "isort>=5.0.0",
+]
+test = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+]
+
 [project.urls]
 Homepage = "https://github.com/with-developer/claude-code-automation"
 Repository = "https://github.com/with-developer/claude-code-automation"

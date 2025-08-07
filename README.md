@@ -2,9 +2,11 @@
 
 Claude Code rate limit 회피를 위한 자동 세션 시작 도구
 
+[![CI](https://github.com/with-developer/claude-code-automation/workflows/CI/badge.svg)](https://github.com/with-developer/claude-code-automation/actions)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://python.org)
 [![macOS](https://img.shields.io/badge/platform-macOS-lightgrey.svg)](https://www.apple.com/macos/)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 ## ✨ 특징
 
