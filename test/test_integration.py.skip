@@ -1,0 +1,242 @@
+#!/usr/bin/env python3
+"""Integration tests for the entire application flow"""
+
+import pytest
+import sys
+import os
+import subprocess
+from unittest.mock import patch, MagicMock, mock_open
+from pathlib import Path
+
+# Add src to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+from src.simple_cli import main, handle_schedule, handle_list, handle_clear, handle_start
+
+
+class TestCLIIntegration:
+    """Test complete CLI workflows with mocked system calls"""
+    
+    @patch('platform.system', return_value='Darwin')
+    @patch('src.logger.setup_logger')
+    def test_complete_schedule_workflow(self, mock_logger, capsys):
+        """Test complete schedule workflow from CLI to LaunchAgent"""
+        
+        # Mock LaunchAgentManager
+        with patch('src.simple_cli.LaunchAgentManager') as MockManager:
+            mock_manager = MockManager.return_value
+            mock_manager.install.return_value = True
+            
+            with patch('sys.argv', ['claude-code-automation', 'schedule', '14:30', '16:00']):
+                main()
+            
+            # Verify LaunchAgent was called with correct times
+            mock_manager.install.assert_called_once_with(['14:30', '16:00'])
+            
+            # Check output
+            captured = capsys.readouterr()
+            assert "✓ Scheduled sessions at: 14:30, 16:00" in captured.out
+    
+    @patch('platform.system', return_value='Darwin')
+    @patch('src.logger.setup_logger')
+    def test_schedule_installation_failure(self, mock_logger, capsys):
+        """Test schedule workflow when LaunchAgent installation fails"""
+        
+        with patch('src.simple_cli.LaunchAgentManager') as MockManager:
+            mock_manager = MockManager.return_value
+            mock_manager.install.return_value = False
+            
+            with patch('sys.argv', ['claude-code-automation', 'schedule', '14:30']):
+                with pytest.raises(SystemExit) as exc_info:
+                    main()
+            
+            assert exc_info.value.code == 1
+            captured = capsys.readouterr()
+            assert "✗ Failed to schedule sessions" in captured.out
+    
+    @patch('platform.system', return_value='Darwin')
+    def test_list_workflow_with_schedules(self, capsys):
+        """Test list workflow when schedules exist"""
+        
+        with patch('src.simple_cli.LaunchAgentManager') as MockManager:
+            mock_manager = MockManager.return_value
+            mock_manager.status.return_value = "✓ Service is loaded and running"
+            mock_manager.plist_path.exists.return_value = True
+            
+            # Mock plist reading
+            mock_plist_data = {
+                'StartCalendarInterval': [
+                    {'Hour': 14, 'Minute': 30},
+                    {'Hour': 16, 'Minute': 0}
+                ]
+            }
+            
+            with patch('builtins.open', mock_open()):
+                with patch('plistlib.load', return_value=mock_plist_data):
+                    with patch('sys.argv', ['claude-code-automation', 'list']):
+                        main()
+            
+            captured = capsys.readouterr()
+            assert "Scheduled sessions:" in captured.out
+            assert "14:30" in captured.out
+            assert "16:00" in captured.out
+            assert "✓ Service is loaded and running" in captured.out
+    
+    @patch('platform.system', return_value='Darwin')
+    def test_clear_workflow(self, capsys):
+        """Test clear workflow"""
+        
+        with patch('src.simple_cli.LaunchAgentManager') as MockManager:
+            mock_manager = MockManager.return_value
+            mock_manager.uninstall.return_value = True
+            
+            with patch('sys.argv', ['claude-code-automation', 'clear']):
+                main()
+            
+            mock_manager.uninstall.assert_called_once()
+            captured = capsys.readouterr()
+            assert "✓ Cleared all scheduled sessions" in captured.out
+    
+    @patch('src.logger.setup_logger')
+    def test_start_workflow_success(self, mock_logger, capsys):
+        """Test manual start workflow"""
+        
+        with patch('src.simple_cli.SessionManager') as MockSessionManager:
+            mock_session = MockSessionManager.return_value
+            mock_session.start_session.return_value = True
+            
+            with patch('sys.argv', ['claude-code-automation', 'start']):
+                main()
+            
+            mock_session.start_session.assert_called_once()
+            captured = capsys.readouterr()
+            assert "✓ Claude Code session started successfully" in captured.out
+    
+    @patch('src.logger.setup_logger')
+    def test_start_workflow_failure(self, mock_logger, capsys):
+        """Test manual start workflow when session start fails"""
+        
+        with patch('src.simple_cli.SessionManager') as MockSessionManager:
+            mock_session = MockSessionManager.return_value
+            mock_session.start_session.return_value = False
+            
+            with patch('sys.argv', ['claude-code-automation', 'start']):
+                with pytest.raises(SystemExit) as exc_info:
+                    main()
+            
+            assert exc_info.value.code == 1
+            captured = capsys.readouterr()
+            assert "✗ Failed to start Claude Code session" in captured.out
+    
+    @patch('platform.system', return_value='Darwin')
+    def test_status_workflow(self, capsys):
+        """Test status workflow"""
+        
+        with patch('src.simple_cli.LaunchAgentManager') as MockManager:
+            mock_manager = MockManager.return_value
+            mock_manager.status.return_value = "✓ Service is loaded and running"
+            
+            # Mock session marker file
+            with patch('pathlib.Path.exists', return_value=True):
+                with patch('builtins.open', mock_open(read_data='Session started at: 2024-01-01 14:30:00')):
+                    with patch('sys.argv', ['claude-code-automation', 'status']):
+                        main()
+            
+            captured = capsys.readouterr()
+            assert "Service: ✓ Service is loaded and running" in captured.out
+            assert "Current session:" in captured.out
+            assert "Session started at: 2024-01-01 14:30:00" in captured.out
+
+
+class TestErrorHandling:
+    """Test various error conditions"""
+    
+    @patch('platform.system', return_value='Darwin')
+    @patch('src.logger.setup_logger')
+    def test_schedule_with_mixed_time_formats(self, mock_logger, capsys):
+        """Test scheduling with mixed HH:MM and HHMM formats"""
+        
+        with patch('src.simple_cli.LaunchAgentManager') as MockManager:
+            mock_manager = MockManager.return_value
+            mock_manager.install.return_value = True
+            
+            with patch('sys.argv', ['claude-code-automation', 'schedule', '14:30', '1600', '18:45']):
+                main()
+            
+            # Should handle both formats correctly
+            mock_manager.install.assert_called_once_with(['14:30', '1600', '18:45'])
+            
+            captured = capsys.readouterr()
+            assert "✓ Scheduled sessions at: 14:30, 1600, 18:45" in captured.out
+    
+    def test_invalid_time_ranges(self, capsys):
+        """Test various invalid time ranges"""
+        invalid_times = ['25:00', '12:60', '24:00', '12:99']
+        
+        for invalid_time in invalid_times:
+            with patch('platform.system', return_value='Darwin'):
+                with patch('sys.argv', ['claude-code-automation', 'schedule', invalid_time]):
+                    with pytest.raises(SystemExit) as exc_info:
+                        main()
+                
+                assert exc_info.value.code == 1
+                captured = capsys.readouterr()
+                assert f"Error: Invalid time format '{invalid_time}'" in captured.out
+    
+    @patch('platform.system', return_value='Darwin')
+    def test_list_with_corrupted_plist(self, capsys):
+        """Test list command with corrupted plist file"""
+        
+        with patch('src.simple_cli.LaunchAgentManager') as MockManager:
+            mock_manager = MockManager.return_value
+            mock_manager.status.return_value = "Service status unknown"
+            mock_manager.plist_path.exists.return_value = True
+            
+            # Mock plist reading error
+            with patch('builtins.open', mock_open()):
+                with patch('plistlib.load', side_effect=Exception("Corrupted plist")):
+                    with patch('sys.argv', ['claude-code-automation', 'list']):
+                        main()
+            
+            captured = capsys.readouterr()
+            assert "Error reading schedule: Corrupted plist" in captured.out
+
+
+class TestEdgeCases:
+    """Test edge cases and boundary conditions"""
+    
+    @patch('platform.system', return_value='Darwin')
+    @patch('src.logger.setup_logger')
+    def test_schedule_many_times(self, mock_logger):
+        """Test scheduling many times (stress test)"""
+        
+        many_times = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00']
+        
+        with patch('src.simple_cli.LaunchAgentManager') as MockManager:
+            mock_manager = MockManager.return_value
+            mock_manager.install.return_value = True
+            
+            with patch('sys.argv', ['claude-code-automation', 'schedule'] + many_times):
+                main()
+            
+            mock_manager.install.assert_called_once_with(many_times)
+    
+    @patch('platform.system', return_value='Darwin')
+    @patch('src.logger.setup_logger')
+    def test_schedule_boundary_times(self, mock_logger):
+        """Test scheduling boundary times (00:00, 23:59)"""
+        
+        boundary_times = ['00:00', '23:59', '0000', '2359']
+        
+        with patch('src.simple_cli.LaunchAgentManager') as MockManager:
+            mock_manager = MockManager.return_value
+            mock_manager.install.return_value = True
+            
+            with patch('sys.argv', ['claude-code-automation', 'schedule'] + boundary_times):
+                main()
+            
+            mock_manager.install.assert_called_once_with(boundary_times)
+
+
+if __name__ == '__main__':
+    pytest.main([__file__])

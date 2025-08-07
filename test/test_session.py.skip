@@ -1,0 +1,218 @@
+#!/usr/bin/env python3
+"""Comprehensive tests for Session management using mocks"""
+
+import pytest
+import sys
+import os
+import tempfile
+import subprocess
+import time
+from unittest.mock import patch, MagicMock, mock_open
+from pathlib import Path
+
+# Add src to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+from src.session import SessionManager
+
+
+class TestSessionManager:
+    """Test Session management with proper mocking"""
+    
+    def setup_method(self):
+        """Setup test environment"""
+        self.manager = SessionManager()
+    
+    @patch('pathlib.Path.mkdir')
+    @patch('os.chdir')
+    @patch('subprocess.Popen')
+    def test_start_session_success(self, mock_popen, mock_chdir, mock_mkdir):
+        """Test successful session start"""
+        # Mock successful process
+        mock_process = MagicMock()
+        mock_process.poll.return_value = None  # Process is running
+        mock_popen.return_value = mock_process
+        
+        with patch.object(self.manager, '_write_session_marker') as mock_marker:
+            result = self.manager.start_session()
+            
+            assert result is True
+            mock_mkdir.assert_called()  # Session directory created
+            mock_chdir.assert_called()  # Changed to session directory
+            mock_popen.assert_called()  # Claude process started
+            mock_marker.assert_called_once()  # Session marker written
+    
+    @patch('pathlib.Path.mkdir')
+    @patch('os.chdir')
+    @patch('subprocess.Popen')
+    def test_start_session_claude_not_found(self, mock_popen, mock_chdir, mock_mkdir):
+        """Test session start when Claude Code is not found"""
+        mock_popen.side_effect = FileNotFoundError("claude command not found")
+        
+        result = self.manager.start_session()
+        
+        assert result is False
+    
+    @patch('pathlib.Path.mkdir')
+    @patch('os.chdir')
+    @patch('subprocess.Popen')
+    def test_start_session_permission_error(self, mock_popen, mock_chdir, mock_mkdir):
+        """Test session start with permission error"""
+        mock_mkdir.side_effect = PermissionError("Permission denied")
+        
+        result = self.manager.start_session()
+        
+        assert result is False
+    
+    @patch('pathlib.Path.mkdir')
+    @patch('os.chdir')
+    @patch('subprocess.Popen')
+    @patch('time.sleep')
+    def test_start_session_with_initial_message(self, mock_sleep, mock_popen, mock_chdir, mock_mkdir):
+        """Test session start with initial message sending"""
+        # Mock successful process
+        mock_process = MagicMock()
+        mock_process.poll.return_value = None
+        mock_process.stdin.write = MagicMock()
+        mock_process.stdin.flush = MagicMock()
+        mock_popen.return_value = mock_process
+        
+        with patch.object(self.manager, '_write_session_marker'):
+            result = self.manager.start_session()
+            
+            assert result is True
+            # Verify initial message was sent
+            mock_process.stdin.write.assert_called()
+            mock_process.stdin.flush.assert_called()
+    
+    @patch('builtins.open', new_callable=mock_open)
+    def test_write_session_marker_success(self, mock_file):
+        """Test session marker writing"""
+        with patch('pathlib.Path.mkdir') as mock_mkdir:
+            self.manager._write_session_marker()
+            
+            mock_mkdir.assert_called()  # Config directory created
+            mock_file.assert_called()   # Marker file written
+            
+            # Verify content includes timestamp
+            written_content = ''.join(call.args[0] for call in mock_file().write.call_args_list)
+            assert "Session started at:" in written_content
+    
+    @patch('builtins.open', new_callable=mock_open)
+    def test_write_session_marker_file_error(self, mock_file):
+        """Test session marker writing with file error"""
+        mock_file.side_effect = IOError("Cannot write file")
+        
+        # Should not raise exception, just log error
+        self.manager._write_session_marker()
+    
+    @patch('pathlib.Path.exists')
+    @patch('builtins.open', new_callable=mock_open, read_data='Session started at: 2024-01-01 14:30:00')
+    def test_check_session_status_active(self, mock_file, mock_exists):
+        """Test session status check when session is active"""
+        mock_exists.return_value = True
+        
+        status = self.manager.check_session_status()
+        
+        assert "Session is active" in status
+        assert "2024-01-01 14:30:00" in status
+    
+    @patch('pathlib.Path.exists')
+    def test_check_session_status_inactive(self, mock_exists):
+        """Test session status check when no session is active"""
+        mock_exists.return_value = False
+        
+        status = self.manager.check_session_status()
+        
+        assert "No active session" in status
+    
+    @patch('subprocess.run')
+    def test_verify_claude_installation_found(self, mock_run):
+        """Test Claude Code installation verification when found"""
+        mock_run.return_value.returncode = 0
+        mock_run.return_value.stdout = "/usr/local/bin/claude"
+        
+        result = self.manager._verify_claude_installation()
+        
+        assert result is True
+        mock_run.assert_called_with(['which', 'claude'], capture_output=True, text=True)
+    
+    @patch('subprocess.run')
+    def test_verify_claude_installation_not_found(self, mock_run):
+        """Test Claude Code installation verification when not found"""
+        mock_run.side_effect = subprocess.CalledProcessError(1, 'which')
+        
+        result = self.manager._verify_claude_installation()
+        
+        assert result is False
+    
+    @patch('pathlib.Path.mkdir')
+    @patch('os.chdir')
+    @patch('subprocess.Popen')
+    def test_start_session_process_dies_immediately(self, mock_popen, mock_chdir, mock_mkdir):
+        """Test session start when process dies immediately"""
+        # Mock process that dies immediately
+        mock_process = MagicMock()
+        mock_process.poll.return_value = 1  # Process has exited with error
+        mock_popen.return_value = mock_process
+        
+        result = self.manager.start_session()
+        
+        assert result is False
+    
+    @patch('pathlib.Path.mkdir')
+    @patch('os.chdir')
+    @patch('subprocess.Popen')
+    @patch('time.sleep')
+    def test_start_session_retry_logic(self, mock_sleep, mock_popen, mock_chdir, mock_mkdir):
+        """Test session start retry logic on temporary failures"""
+        # First attempt fails, second succeeds
+        attempts = [1, None]  # First returns exit code 1, second returns None (running)
+        
+        mock_process = MagicMock()
+        mock_process.poll.side_effect = attempts
+        mock_popen.return_value = mock_process
+        
+        with patch.object(self.manager, '_write_session_marker'):
+            result = self.manager.start_session()
+            
+            assert result is True
+            assert mock_sleep.call_count >= 1  # Retry delay
+
+
+class TestSessionManagerIntegration:
+    """Integration tests for SessionManager"""
+    
+    def setup_method(self):
+        """Setup test environment"""
+        self.manager = SessionManager()
+    
+    @patch('pathlib.Path.mkdir')
+    @patch('os.chdir')
+    @patch('subprocess.Popen')
+    @patch('subprocess.run')
+    def test_full_session_lifecycle(self, mock_run, mock_popen, mock_chdir, mock_mkdir):
+        """Test complete session lifecycle"""
+        # Mock Claude installation check
+        mock_run.return_value.returncode = 0
+        mock_run.return_value.stdout = "/usr/local/bin/claude"
+        
+        # Mock successful process
+        mock_process = MagicMock()
+        mock_process.poll.return_value = None
+        mock_popen.return_value = mock_process
+        
+        with patch.object(self.manager, '_write_session_marker'):
+            with patch.object(self.manager, 'check_session_status', return_value="Session is active"):
+                
+                # Start session
+                start_result = self.manager.start_session()
+                assert start_result is True
+                
+                # Check status
+                status = self.manager.check_session_status()
+                assert "Session is active" in status
+
+
+if __name__ == '__main__':
+    pytest.main([__file__])

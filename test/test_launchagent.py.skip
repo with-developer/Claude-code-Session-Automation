@@ -1,0 +1,188 @@
+#!/usr/bin/env python3
+"""Comprehensive tests for LaunchAgent functionality using mocks"""
+
+import pytest
+import sys
+import os
+import tempfile
+import subprocess
+import plistlib
+from unittest.mock import patch, MagicMock, mock_open
+from pathlib import Path
+
+# Add src to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+from src.launchagent import LaunchAgentManager
+
+
+class TestLaunchAgentManager:
+    """Test LaunchAgent management with proper mocking"""
+    
+    def setup_method(self):
+        """Setup test environment"""
+        self.manager = LaunchAgentManager()
+    
+    def test_create_plist_single_time(self):
+        """Test plist creation with single time"""
+        with patch('subprocess.run') as mock_run:
+            mock_run.return_value.stdout = '/usr/local/bin/claude-code-automation'
+            mock_run.return_value.returncode = 0
+            
+            plist = self.manager.create_plist(['14:30'])
+            
+            assert plist['Label'] == 'com.claude-code-automation'
+            assert plist['ProgramArguments'] == ['/usr/local/bin/claude-code-automation', 'start']
+            assert plist['StartCalendarInterval'] == {'Hour': 14, 'Minute': 30}
+    
+    def test_create_plist_multiple_times(self):
+        """Test plist creation with multiple times"""
+        with patch('subprocess.run') as mock_run:
+            mock_run.return_value.stdout = '/usr/local/bin/claude-code-automation'
+            mock_run.return_value.returncode = 0
+            
+            plist = self.manager.create_plist(['09:00', '14:30', '18:45'])
+            
+            expected_intervals = [
+                {'Hour': 9, 'Minute': 0},
+                {'Hour': 14, 'Minute': 30},
+                {'Hour': 18, 'Minute': 45}
+            ]
+            assert plist['StartCalendarInterval'] == expected_intervals
+    
+    def test_create_plist_hhmm_format(self):
+        """Test plist creation with HHMM format"""
+        with patch('subprocess.run') as mock_run:
+            mock_run.return_value.stdout = '/usr/local/bin/claude-code-automation'
+            mock_run.return_value.returncode = 0
+            
+            plist = self.manager.create_plist(['0930', '1645'])
+            
+            expected_intervals = [
+                {'Hour': 9, 'Minute': 30},
+                {'Hour': 16, 'Minute': 45}
+            ]
+            assert plist['StartCalendarInterval'] == expected_intervals
+    
+    def test_create_plist_which_command_fails(self):
+        """Test plist creation when 'which' command fails"""
+        with patch('subprocess.run') as mock_run:
+            mock_run.side_effect = subprocess.CalledProcessError(1, 'which')
+            
+            plist = self.manager.create_plist(['14:30'])
+            
+            # Should fallback to default path
+            assert plist['ProgramArguments'] == ['/usr/local/bin/claude-code-automation', 'start']
+    
+    def test_create_plist_invalid_time_format(self):
+        """Test plist creation with invalid time format"""
+        with pytest.raises(ValueError, match="Invalid time format"):
+            self.manager.create_plist(['25:70'])
+    
+    @patch('pathlib.Path.mkdir')
+    @patch('builtins.open', new_callable=mock_open)
+    @patch('plistlib.dump')
+    def test_install_success(self, mock_dump, mock_file, mock_mkdir):
+        """Test successful LaunchAgent installation"""
+        with patch.object(self.manager, 'load', return_value=True) as mock_load:
+            with patch('subprocess.run') as mock_run:
+                mock_run.return_value.stdout = '/usr/local/bin/claude-code-automation'
+                mock_run.return_value.returncode = 0
+                
+                result = self.manager.install(['14:30'])
+                
+                assert result is True
+                mock_mkdir.assert_called_once()
+                mock_file.assert_called_once_with(self.manager.plist_path, 'wb')
+                mock_dump.assert_called_once()
+                mock_load.assert_called_once()
+    
+    @patch('pathlib.Path.mkdir')
+    @patch('builtins.open', new_callable=mock_open)
+    def test_install_file_write_error(self, mock_file, mock_mkdir):
+        """Test installation failure due to file write error"""
+        mock_file.side_effect = PermissionError("Permission denied")
+        
+        with patch('subprocess.run') as mock_run:
+            mock_run.return_value.stdout = '/usr/local/bin/claude-code-automation'
+            
+            result = self.manager.install(['14:30'])
+            
+            assert result is False
+    
+    @patch('subprocess.run')
+    def test_load_success(self, mock_run):
+        """Test successful LaunchAgent loading"""
+        mock_run.return_value.returncode = 0
+        
+        result = self.manager.load()
+        
+        assert result is True
+        mock_run.assert_called_once_with(
+            ['launchctl', 'load', str(self.manager.plist_path)],
+            capture_output=True, text=True
+        )
+    
+    @patch('subprocess.run')
+    def test_load_failure(self, mock_run):
+        """Test LaunchAgent loading failure"""
+        mock_run.side_effect = subprocess.CalledProcessError(1, 'launchctl')
+        
+        result = self.manager.load()
+        
+        assert result is False
+    
+    @patch('subprocess.run')
+    def test_unload_success(self, mock_run):
+        """Test successful LaunchAgent unloading"""
+        mock_run.return_value.returncode = 0
+        
+        result = self.manager.unload()
+        
+        assert result is True
+        mock_run.assert_called_once_with(
+            ['launchctl', 'unload', str(self.manager.plist_path)],
+            capture_output=True, text=True
+        )
+    
+    @patch('pathlib.Path.unlink')
+    def test_uninstall_success(self, mock_unlink):
+        """Test successful LaunchAgent uninstallation"""
+        with patch.object(self.manager, 'unload', return_value=True):
+            with patch.object(self.manager.plist_path, 'exists', return_value=True):
+                result = self.manager.uninstall()
+                
+                assert result is True
+                mock_unlink.assert_called_once()
+    
+    def test_uninstall_file_not_exists(self):
+        """Test uninstallation when plist file doesn't exist"""
+        with patch.object(self.manager, 'unload', return_value=True):
+            with patch.object(self.manager.plist_path, 'exists', return_value=False):
+                result = self.manager.uninstall()
+                
+                assert result is True  # Still considered success
+    
+    @patch('subprocess.run')
+    def test_status_running(self, mock_run):
+        """Test status when service is running"""
+        mock_run.return_value.stdout = "123\tcom.claude-code-automation"
+        mock_run.return_value.returncode = 0
+        
+        status = self.manager.status()
+        
+        assert "✓ Service is loaded and running" in status
+    
+    @patch('subprocess.run')
+    def test_status_not_running(self, mock_run):
+        """Test status when service is not running"""
+        mock_run.return_value.stdout = ""
+        mock_run.return_value.returncode = 0
+        
+        status = self.manager.status()
+        
+        assert "✗ Service is not loaded" in status
+
+
+if __name__ == '__main__':
+    pytest.main([__file__])
