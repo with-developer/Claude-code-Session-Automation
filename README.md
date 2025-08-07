@@ -4,15 +4,9 @@ Claude Code rate limit 회피를 위한 자동 세션 시작 도구
 
 ## 설치
 
-### Homebrew를 통한 설치 (권장)
-```bash
-brew tap weakness/tap
-brew install claude-code-automation
-```
-
 ### 소스에서 설치
 ```bash
-git clone https://github.com/weakness/claude-code-automation.git
+git clone https://github.com/yourusername/claude-code-automation.git
 cd claude-code-automation
 pip install -e .
 ```
@@ -69,8 +63,8 @@ claude-code-automation clear
 ## 요구사항
 
 - Python 3.8+
-- `claude-code` 명령어가 시스템에 설치되어 있어야 함
-- macOS 또는 Linux (cron 지원 필요)
+- `claude` 명령어가 시스템에 설치되어 있어야 함
+- macOS 또는 Linux
 
 ## 주의사항
 

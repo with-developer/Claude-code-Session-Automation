@@ -7,59 +7,28 @@
     
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/weakness/dev/Claude-code-Session-Automation/venv/bin/claude-code-automation</string>
+        <string>claude-code-automation</string>
         <string>start</string>
     </array>
     
     <key>StartCalendarInterval</key>
-    <array>
-        <!-- 매일 오전 5시 -->
-        <dict>
-            <key>Hour</key>
-            <integer>5</integer>
-            <key>Minute</key>
-            <integer>0</integer>
-        </dict>
-        <!-- 매일 오전 10시 -->
-        <dict>
-            <key>Hour</key>
-            <integer>10</integer>
-            <key>Minute</key>
-            <integer>0</integer>
-        </dict>
-        <!-- 매일 오후 3시 -->
-        <dict>
-            <key>Hour</key>
-            <integer>15</integer>
-            <key>Minute</key>
-            <integer>0</integer>
-        </dict>
-        <!-- 매일 오후 8시 -->
-        <dict>
-            <key>Hour</key>
-            <integer>20</integer>
-            <key>Minute</key>
-            <integer>0</integer>
-        </dict>
-    </array>
+    <dict>
+        <key>Hour</key>
+        <integer>13</integer>
+        <key>Minute</key>
+        <integer>35</integer>
+    </dict>
     
     <key>StandardOutPath</key>
-    <string>/Users/weakness/.config/claude-code-automation/logs/launchd-stdout.log</string>
+    <string>~/Library/Logs/claude-code-automation.out.log</string>
     
     <key>StandardErrorPath</key>
-    <string>/Users/weakness/.config/claude-code-automation/logs/launchd-stderr.log</string>
-    
-    <key>WorkingDirectory</key>
-    <string>/Users/weakness/.config/claude-code-automation/session</string>
+    <string>~/Library/Logs/claude-code-automation.err.log</string>
     
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
-        <string>/Users/weakness/.nvm/versions/node/v20.19.4/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin</string>
-        <key>HOME</key>
-        <string>/Users/weakness</string>
-        <key>USER</key>
-        <string>weakness</string>
+        <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin</string>
     </dict>
 </dict>
 </plist>

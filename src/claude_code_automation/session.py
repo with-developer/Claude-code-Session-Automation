@@ -21,21 +21,7 @@ class SessionManager:
     
     def _check_claude_available(self) -> bool:
         """Check if claude command is available"""
-        # Common paths where claude might be installed
-        claude_paths = [
-            '/Users/weakness/.nvm/versions/node/v20.19.4/bin/claude',
-            '/usr/local/bin/claude',
-            '/opt/homebrew/bin/claude',
-            os.path.expanduser('~/.local/bin/claude'),
-        ]
-        
-        # Check each path
-        for path in claude_paths:
-            if os.path.isfile(path) or os.path.islink(path):
-                self.claude_path = path
-                return True
-        
-        # Fallback to which command
+        # Try to find claude using which command first
         try:
             result = subprocess.run(['which', 'claude'], 
                                   capture_output=True, text=True, check=True)
@@ -44,6 +30,32 @@ class SessionManager:
                 return True
         except subprocess.CalledProcessError:
             pass
+        
+        # Common paths where claude might be installed
+        common_dirs = [
+            '/usr/local/bin',
+            '/opt/homebrew/bin',
+            os.path.expanduser('~/.local/bin'),
+        ]
+        
+        # Check NVM paths if NVM_DIR exists
+        nvm_dir = os.environ.get('NVM_DIR', os.path.expanduser('~/.nvm'))
+        if os.path.exists(nvm_dir):
+            # Look for node versions
+            versions_dir = os.path.join(nvm_dir, 'versions', 'node')
+            if os.path.exists(versions_dir):
+                for version in os.listdir(versions_dir):
+                    bin_path = os.path.join(versions_dir, version, 'bin', 'claude')
+                    if os.path.exists(bin_path):
+                        self.claude_path = bin_path
+                        return True
+        
+        # Check common paths
+        for dir_path in common_dirs:
+            claude_path = os.path.join(dir_path, 'claude')
+            if os.path.exists(claude_path):
+                self.claude_path = claude_path
+                return True
             
         self.claude_path = 'claude'  # Default fallback
         return False
@@ -54,11 +66,20 @@ class SessionManager:
         
         # Common node installation paths
         node_paths = [
-            '/Users/weakness/.nvm/versions/node/v20.19.4/bin',
             '/usr/local/bin',
             '/opt/homebrew/bin',
             os.path.expanduser('~/.local/bin'),
         ]
+        
+        # Add NVM paths if available
+        nvm_dir = os.environ.get('NVM_DIR', os.path.expanduser('~/.nvm'))
+        if os.path.exists(nvm_dir):
+            versions_dir = os.path.join(nvm_dir, 'versions', 'node')
+            if os.path.exists(versions_dir):
+                for version in os.listdir(versions_dir):
+                    bin_path = os.path.join(versions_dir, version, 'bin')
+                    if os.path.exists(bin_path):
+                        node_paths.insert(0, bin_path)
         
         # Add all potential node paths to PATH
         existing_path = env.get('PATH', '')
@@ -75,12 +96,11 @@ class SessionManager:
         
         # Set USER if not present
         if not env.get('USER'):
-            env['USER'] = 'weakness'
+            import pwd
+            env['USER'] = pwd.getpwuid(os.getuid()).pw_name
         
-        # Add Claude-specific environment variables
-        env['CLAUDE_CODE_SSE_PORT'] = '12328'
-        env['CLAUDE_CODE_ENTRYPOINT'] = 'cli'
-        env['CLAUDECODE'] = '1'
+        # Claude-specific environment variables are not needed
+        # Claude will handle its own environment setup
         
         return env
     
@@ -97,11 +117,6 @@ class SessionManager:
             
             # Get environment with proper PATH for node
             env = self._get_node_env()
-            
-            # First, add the session directory to trusted paths
-            # This bypasses the trust dialog
-            trust_command = [self.claude_path, 'config', 'set', '-g', 'hasTrustDialogAccepted', 'true']
-            subprocess.run(trust_command, capture_output=True, env=env)
             
             # Start claude with a simple message to initiate a session
             # Using --print to avoid interactive mode but still create a session
