@@ -17,15 +17,36 @@ class SessionManager:
         self.session_dir = self.config.session_directory
         self.max_retries = 3
         self.retry_delay = 5  # seconds
+        self.claude_path = 'claude'  # Will be updated by _check_claude_available
     
     def _check_claude_available(self) -> bool:
         """Check if claude command is available"""
+        # Common paths where claude might be installed
+        claude_paths = [
+            '/Users/weakness/.nvm/versions/node/v20.19.4/bin/claude',
+            '/usr/local/bin/claude',
+            '/opt/homebrew/bin/claude',
+            os.path.expanduser('~/.local/bin/claude'),
+        ]
+        
+        # Check each path
+        for path in claude_paths:
+            if os.path.isfile(path) and os.access(path, os.X_OK):
+                self.claude_path = path
+                return True
+        
+        # Fallback to which command
         try:
             result = subprocess.run(['which', 'claude'], 
                                   capture_output=True, text=True, check=True)
-            return bool(result.stdout.strip())
+            if result.stdout.strip():
+                self.claude_path = result.stdout.strip()
+                return True
         except subprocess.CalledProcessError:
-            return False
+            pass
+            
+        self.claude_path = 'claude'  # Default fallback
+        return False
     
     def _start_claude_session(self) -> bool:
         """Start a Claude Code session in background"""
@@ -40,13 +61,13 @@ class SessionManager:
             
             # First, add the session directory to trusted paths
             # This bypasses the trust dialog
-            trust_command = ['claude', 'config', 'set', '-g', 'hasTrustDialogAccepted', 'true']
+            trust_command = [self.claude_path, 'config', 'set', '-g', 'hasTrustDialogAccepted', 'true']
             subprocess.run(trust_command, capture_output=True)
             
             # Start claude with a simple message to initiate a session
             # Using --print to avoid interactive mode but still create a session
             process = subprocess.Popen(
-                ['claude', '--print', '--dangerously-skip-permissions', 'Session started automatically at ' + time.strftime('%Y-%m-%d %H:%M:%S')],
+                [self.claude_path, '--print', '--dangerously-skip-permissions', 'Session started automatically at ' + time.strftime('%Y-%m-%d %H:%M:%S')],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
@@ -116,7 +137,7 @@ class SessionManager:
         """Check if Claude session is still active"""
         try:
             # Simple check to see if claude process is running
-            result = subprocess.run(['pgrep', '-f', 'claude'], 
+            result = subprocess.run(['pgrep', '-f', self.claude_path], 
                                   capture_output=True, text=True)
             return result.returncode == 0
         except Exception as e:
