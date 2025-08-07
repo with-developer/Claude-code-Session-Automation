@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """CLI interface for Claude Code Session Automation"""
 
 import click
@@ -83,61 +84,5 @@ def list():
         click.echo(f"Error reading schedule: {e}", err=True)
 
 
-@cli.command()
-def clear():
-    """Clear all scheduled sessions"""
-    if platform.system() != 'Darwin':
-        click.echo("Error: This command is only available on macOS", err=True)
-        return
-    
-    agent = LaunchAgentManager()
-    if agent.uninstall():
-        click.echo("✓ Cleared all scheduled sessions")
-    else:
-        click.echo("✗ Failed to clear sessions", err=True)
-
-
-@cli.command()
-def start():
-    """Manually start a Claude Code session"""
-    setup_logger()
-    session_manager = SessionManager()
-    
-    success = session_manager.start_session()
-    if success:
-        click.echo("✓ Claude Code session started successfully")
-    else:
-        click.echo("✗ Failed to start Claude Code session", err=True)
-        exit(1)
-
-
-@cli.command()
-def status():
-    """Show current status and next scheduled session"""
-    if platform.system() != 'Darwin':
-        click.echo("Error: This command is only available on macOS", err=True)
-        return
-    
-    # Show LaunchAgent status
-    agent = LaunchAgentManager()
-    click.echo(f"Service: {agent.status()}")
-    
-    # Show current session status
-    import os
-    from pathlib import Path
-    marker_file = Path.home() / ".config/claude-code-automation/session/.claude_session_marker"
-    
-    if marker_file.exists():
-        with open(marker_file, 'r') as f:
-            content = f.read()
-        click.echo(f"\nCurrent session:")
-        click.echo(content)
-    else:
-        click.echo("\nNo active session")
-
-
-def main():
-    return cli()
-
-if __name__ == "__main__":
-    main()
+if __name__ == '__main__':
+    cli()

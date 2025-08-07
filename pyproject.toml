@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.8"
 license = "MIT"
 authors = [
-    { name = "weakness" }
+    { name = "with-developer" }
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -30,11 +30,11 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/weakness/claude-code-automation"
-Repository = "https://github.com/weakness/claude-code-automation"
+Homepage = "https://github.com/with-developer/claude-code-automation"
+Repository = "https://github.com/with-developer/claude-code-automation"
 
 [project.scripts]
-claude-code-automation = "claude_code_automation.cli:main"
+claude-code-automation = "claude_code_automation.simple_cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/claude_code_automation"]
