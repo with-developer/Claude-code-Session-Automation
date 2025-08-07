@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
+"""Manual test for CLI functionality"""
 
-# Bypass the entry point and import directly
 import sys
-sys.path.insert(0, 'src')
-from claude_code_automation.new_cli import cli
+from pathlib import Path
+
+# Add src to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+from src.simple_cli import main
 
 # Manually set argv and test
 sys.argv = ['manual_test', 'schedule', '14:30']
-cli()
+main()

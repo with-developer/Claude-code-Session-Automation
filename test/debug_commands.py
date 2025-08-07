@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
+"""Debug CLI commands and structure"""
 
 import sys
-sys.path.insert(0, 'src')
-from claude_code_automation.new_cli import cli
+from pathlib import Path
 
-print("CLI object:", cli)
-print("Commands:", cli.commands)
-print("Available commands:", list(cli.commands.keys()))
+# Add src to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-# Try to manually invoke schedule
-schedule_cmd = cli.commands.get('schedule')
-print("Schedule command:", schedule_cmd)
+from src.simple_cli import main, handle_schedule, handle_list
 
-if schedule_cmd:
-    print("Schedule callback:", schedule_cmd.callback)
-    print("Schedule params:", schedule_cmd.params)
+print("Simple CLI functions available:")
+print(f"main: {main}")
+print(f"handle_schedule: {handle_schedule}")
+print(f"handle_list: {handle_list}")
+
+# Test help
+sys.argv = ['debug_commands', 'help']
+print("\n--- Testing help command ---")
+main()

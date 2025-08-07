@@ -39,19 +39,23 @@ class TestCLI:
         mock_platform.return_value = 'Linux'
         
         with patch('sys.argv', ['claude-code-automation', 'schedule', '14:30']):
-            main()
+            with pytest.raises(SystemExit) as exc_info:
+                main()
         
         captured = capsys.readouterr()
         assert "Error: Scheduling is only available on macOS" in captured.out
+        assert exc_info.value.code == 1
 
     def test_invalid_time_format(self, capsys):
         """Test invalid time format handling"""
         with patch('platform.system', return_value='Darwin'):
             with patch('sys.argv', ['claude-code-automation', 'schedule', '25:70']):
-                main()
+                with pytest.raises(SystemExit) as exc_info:
+                    main()
         
         captured = capsys.readouterr()
         assert "Error: Invalid time format" in captured.out
+        assert exc_info.value.code == 1
 
     def test_valid_time_formats(self):
         """Test valid time format validation"""
@@ -93,12 +97,19 @@ class TestTimeValidation:
         for time_str in valid_times:
             if ':' in time_str:
                 parts = time_str.split(':')
-                assert len(parts) == 2 and all(p.isdigit() for p in parts)
+                if len(parts) == 2 and all(p.isdigit() for p in parts):
+                    hour, minute = int(parts[0]), int(parts[1])
+                    assert 0 <= hour <= 23 and 0 <= minute <= 59
         
         for time_str in invalid_times:
             if ':' in time_str:
                 parts = time_str.split(':')
-                assert not (len(parts) == 2 and all(p.isdigit() for p in parts))
+                if len(parts) == 2 and all(p.isdigit() for p in parts):
+                    hour, minute = int(parts[0]), int(parts[1])
+                    assert not (0 <= hour <= 23 and 0 <= minute <= 59)
+                else:
+                    # String format is invalid (like 'ab:cd')
+                    assert not (len(parts) == 2 and all(p.isdigit() for p in parts))
 
 
 if __name__ == '__main__':

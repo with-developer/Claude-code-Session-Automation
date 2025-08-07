@@ -72,7 +72,16 @@ def handle_schedule(times):
             if len(parts) != 2 or not all(p.isdigit() for p in parts):
                 print(f"Error: Invalid time format '{time_str}'. Use HH:MM or HHMM")
                 sys.exit(1)
-        elif not (len(time_str) == 4 and time_str.isdigit()):
+            hour, minute = int(parts[0]), int(parts[1])
+            if not (0 <= hour <= 23) or not (0 <= minute <= 59):
+                print(f"Error: Invalid time format '{time_str}'. Use HH:MM or HHMM")
+                sys.exit(1)
+        elif len(time_str) == 4 and time_str.isdigit():
+            hour, minute = int(time_str[:2]), int(time_str[2:])
+            if not (0 <= hour <= 23) or not (0 <= minute <= 59):
+                print(f"Error: Invalid time format '{time_str}'. Use HH:MM or HHMM")
+                sys.exit(1)
+        else:
             print(f"Error: Invalid time format '{time_str}'. Use HH:MM or HHMM")
             sys.exit(1)
     
