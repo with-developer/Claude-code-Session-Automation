@@ -13,38 +13,48 @@ pip install -e .
 
 ## 사용법
 
-### 스케줄 설정
+### 빠른 시작 (macOS)
+
+현재 CLI 명령어에 문제가 있어 Python 스크립트를 직접 실행해야 합니다:
+
 ```bash
-# 매일 오전 6시에 세션 시작하도록 설정
-claude-code-automation schedule 06:00
+# 기본 설정으로 설치 (5시간 간격: 5시, 10시, 15시, 20시)
+python setup-launchagent.py
 
-# 여러 시간 설정
-claude-code-automation schedule 06:00 11:00 16:00
+# 특정 시간 설정 (HH:MM 또는 HHMM 형식)
+python setup-launchagent.py 09:00 14:00 19:00
+python setup-launchagent.py 0900 1400 1900
 
-# 24시간 형식 사용 (예: 오후 2시 30분)
-claude-code-automation schedule 14:30
+# 하나의 시간만 설정
+python setup-launchagent.py 14:30
+```
+
+### 서비스 관리
+```bash
+# 서비스 상태 확인
+launchctl list | grep claude-code-automation
+
+# 로그 확인
+tail -f ~/Library/Logs/claude-code-automation.out.log
+
+# 서비스 제거
+launchctl unload ~/Library/LaunchAgents/com.claude-code-automation.plist
+rm ~/Library/LaunchAgents/com.claude-code-automation.plist
 ```
 
 ### 수동 실행
 ```bash
+# 즉시 세션 시작
 claude-code-automation start
-```
-
-### 스케줄 관리
-```bash
-# 현재 스케줄 확인
-claude-code-automation list
-
-# 모든 스케줄 삭제
-claude-code-automation clear
 ```
 
 ## 동작 원리
 
-- 지정된 시간에 cron을 통해 `claude-code-automation start` 명령이 실행됩니다
+- macOS: LaunchAgent를 통해 지정된 시간에 자동 실행
 - 전용 세션 디렉터리(`~/.config/claude-code-automation/session`)에서 Claude Code를 시작합니다
 - 초기 메시지를 보내 세션을 활성화합니다
 - 실패 시 재시도 로직이 작동합니다
+- 키체인 인증을 자동으로 처리합니다
 
 ## 로그 확인
 
