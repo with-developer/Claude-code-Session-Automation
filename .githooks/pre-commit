@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+# Git pre-commit hook for local integration testing
+
+set -e
+
+echo "🔧 Pre-commit hook: Running local tests..."
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Check if we're on macOS
+if [[ "$OSTYPE" != "darwin"* ]]; then
+    echo -e "${YELLOW}⚠️  Skipping local integration tests (not on macOS)${NC}"
+    exit 0
+fi
+
+# Check if Claude Code is installed
+if ! command -v claude &> /dev/null; then
+    echo -e "${YELLOW}⚠️  Claude Code not found - skipping local integration tests${NC}"
+    echo -e "${YELLOW}   Install Claude Code to enable full testing: https://docs.anthropic.com/claude/docs/claude-code${NC}"
+    exit 0
+fi
+
+# Check if virtual environment exists
+if [ ! -d "venv" ]; then
+    echo -e "${YELLOW}⚠️  Virtual environment not found - creating one...${NC}"
+    python3 -m venv venv
+fi
+
+# Activate virtual environment
+source venv/bin/activate
+
+# Install package in development mode if not already installed
+if ! python -c "import src.simple_cli" &> /dev/null; then
+    echo "📦 Installing package in development mode..."
+    pip install -e . > /dev/null 2>&1
+fi
+
+# Install pytest if not available
+if ! python -c "import pytest" &> /dev/null; then
+    echo "📦 Installing pytest..."
+    pip install pytest > /dev/null 2>&1
+fi
+
+echo "🧪 Running local integration tests..."
+echo "   This verifies that Claude Code is accessible and working"
+echo ""
+
+# Run local integration tests with timeout
+timeout_duration=60  # 60 seconds max
+
+if timeout ${timeout_duration} python -m pytest test/test_local_integration.py -v --tb=short; then
+    echo -e "${GREEN}✅ All local integration tests passed!${NC}"
+    echo "   → Claude Code is accessible and working"
+    echo "   → Session management functions properly"
+    echo ""
+else
+    exit_code=$?
+    
+    if [ $exit_code -eq 124 ]; then
+        echo -e "${YELLOW}⚠️  Local integration tests timed out after ${timeout_duration}s${NC}"
+        echo "   This might indicate Claude Code authentication issues"
+        echo "   Try running: claude login"
+        echo ""
+        echo -e "${YELLOW}💡 Commit will continue, but consider checking Claude Code setup${NC}"
+    else
+        echo -e "${YELLOW}⚠️  Some local integration tests failed${NC}"
+        echo "   This doesn't prevent the commit, but indicates potential issues"
+        echo ""
+        echo -e "${YELLOW}💡 To debug, run manually: python -m pytest test/test_local_integration.py -v${NC}"
+    fi
+fi
+
+echo "🚀 Pre-commit checks completed - proceeding with commit"
+exit 0

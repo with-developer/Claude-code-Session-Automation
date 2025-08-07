@@ -54,9 +54,16 @@ ci: lint test
 	@echo "✓ All CI checks passed!"
 
 # Development workflow
-dev-setup: dev-install
+dev-setup: dev-install setup-hooks
 	@echo "Development environment ready!"
 	@echo "Try: make test"
+
+setup-hooks:
+	@python scripts/auto-setup-hooks.py
+
+# Local integration testing
+test-local:
+	@python -m pytest test/test_local_integration.py -v -s
 
 # Homebrew testing
 brew-test:

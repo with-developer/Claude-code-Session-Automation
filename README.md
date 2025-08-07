@@ -22,14 +22,23 @@ Claude Code rate limit 회피를 위한 자동 세션 시작 도구
 
 ```bash
 # 저장소 클론
-git clone https://github.com/with-developer/claude-code-automation.git
-cd claude-code-automation
+git clone https://github.com/with-developer/Claude-code-Session-Automation.git
+cd Claude-code-Session-Automation
 
-# 가상환경 생성 및 설치
+# 자동 개발환경 설정 (권장)
+make dev-setup
+
+# 또는 수동 설정
 python3 -m venv venv
 source venv/bin/activate
 pip install -e .
+python scripts/auto-setup-hooks.py  # Git hooks 설치
 ```
+
+**개발환경 설정 시 자동으로:**
+- ✅ Git pre-commit hooks 설치 (로컬 통합 테스트 자동 실행)
+- ✅ 개발 의존성 설치  
+- ✅ 로컬 Claude Code 연동 테스트
 
 ### Homebrew 설치 (향후 지원 예정)
 
