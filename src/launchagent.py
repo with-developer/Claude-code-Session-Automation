@@ -49,13 +49,18 @@ class LaunchAgentManager:
         plist_dict = {
             'Label': self.label,
             'ProgramArguments': [program_path, 'start'],
-            'StartCalendarInterval': intervals if len(intervals) > 1 else intervals[0],
             'StandardOutPath': str(Path.home() / "Library/Logs/claude-code-automation.out.log"),
             'StandardErrorPath': str(Path.home() / "Library/Logs/claude-code-automation.err.log"),
             'EnvironmentVariables': {
                 'PATH': '/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin'
             }
         }
+        
+        # Add StartCalendarInterval - use single dict for one time, array for multiple
+        if len(intervals) == 1:
+            plist_dict['StartCalendarInterval'] = intervals[0]
+        else:
+            plist_dict['StartCalendarInterval'] = intervals
         
         return plist_dict
     
@@ -72,7 +77,8 @@ class LaunchAgentManager:
             with open(self.plist_path, 'wb') as f:
                 plistlib.dump(plist_dict, f)
             
-            # Load the agent
+            # Unload existing agent (if any) and reload with new configuration
+            self.unload()  # This will fail silently if not loaded
             self.load()
             
             self.logger.info(f"LaunchAgent installed at {self.plist_path}")
