@@ -72,6 +72,13 @@ claude-code-automation clear
 - `claude-code` 명령어가 시스템에 설치되어 있어야 함
 - macOS 또는 Linux (cron 지원 필요)
 
+## 주의사항
+
+- Claude Code 세션은 5시간 동안 유지됩니다.
+- 세션이 시작될 때 Claude Code가 프롬프트를 표시할 수 있습니다.
+- 스케줄 시간은 24시간 형식(HH:MM)으로 입력해야 합니다.
+- **macOS 사용자**: cron 대신 LaunchAgent 사용을 권장합니다. 자세한 내용은 [LAUNCHD_SETUP.md](LAUNCHD_SETUP.md)를 참조하세요.
+
 ## 라이선스
 
 MIT License

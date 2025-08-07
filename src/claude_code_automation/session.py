@@ -31,7 +31,7 @@ class SessionManager:
         
         # Check each path
         for path in claude_paths:
-            if os.path.isfile(path) and os.access(path, os.X_OK):
+            if os.path.isfile(path) or os.path.islink(path):
                 self.claude_path = path
                 return True
         
@@ -48,6 +48,42 @@ class SessionManager:
         self.claude_path = 'claude'  # Default fallback
         return False
     
+    def _get_node_env(self) -> dict:
+        """Get environment with node in PATH for cron execution"""
+        env = os.environ.copy()
+        
+        # Common node installation paths
+        node_paths = [
+            '/Users/weakness/.nvm/versions/node/v20.19.4/bin',
+            '/usr/local/bin',
+            '/opt/homebrew/bin',
+            os.path.expanduser('~/.local/bin'),
+        ]
+        
+        # Add all potential node paths to PATH
+        existing_path = env.get('PATH', '')
+        new_paths = ':'.join(node_paths)
+        env['PATH'] = f"{new_paths}:{existing_path}"
+        
+        # Also set NVM_DIR if using nvm
+        if not env.get('NVM_DIR'):
+            env['NVM_DIR'] = os.path.expanduser('~/.nvm')
+        
+        # Ensure HOME is set for cron execution
+        if not env.get('HOME'):
+            env['HOME'] = os.path.expanduser('~')
+        
+        # Set USER if not present
+        if not env.get('USER'):
+            env['USER'] = 'weakness'
+        
+        # Add Claude-specific environment variables
+        env['CLAUDE_CODE_SSE_PORT'] = '12328'
+        env['CLAUDE_CODE_ENTRYPOINT'] = 'cli'
+        env['CLAUDECODE'] = '1'
+        
+        return env
+    
     def _start_claude_session(self) -> bool:
         """Start a Claude Code session in background"""
         if not self._check_claude_available():
@@ -59,10 +95,13 @@ class SessionManager:
             os.chdir(self.session_dir)
             self.logger.info(f"Starting Claude Code session in {self.session_dir}")
             
+            # Get environment with proper PATH for node
+            env = self._get_node_env()
+            
             # First, add the session directory to trusted paths
             # This bypasses the trust dialog
             trust_command = [self.claude_path, 'config', 'set', '-g', 'hasTrustDialogAccepted', 'true']
-            subprocess.run(trust_command, capture_output=True)
+            subprocess.run(trust_command, capture_output=True, env=env)
             
             # Start claude with a simple message to initiate a session
             # Using --print to avoid interactive mode but still create a session
@@ -71,7 +110,8 @@ class SessionManager:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                cwd=self.session_dir
+                cwd=self.session_dir,
+                env=env
             )
             
             # Wait for completion
@@ -83,7 +123,11 @@ class SessionManager:
                 self.create_session_marker()
                 return True
             else:
-                self.logger.error(f"Claude Code session failed: {stderr}")
+                self.logger.error(f"Claude Code session failed with code {process.returncode}")
+                self.logger.error(f"stderr: {stderr}")
+                self.logger.error(f"stdout: {stdout}")
+                self.logger.error(f"PATH: {env.get('PATH', 'NOT SET')}")
+                self.logger.error(f"claude_path: {self.claude_path}")
                 return False
             
         except subprocess.TimeoutExpired:

@@ -36,4 +36,7 @@ MANIFEST
 
 # OS
 .DS_Store
-Thumbs.dbtemp/
+Thumbs.db
+
+# Temporary files
+temp/

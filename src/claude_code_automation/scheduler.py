@@ -48,7 +48,10 @@ class ScheduleManager:
         
         cron_time = self._time_to_cron(time_str)
         script_path = self._get_script_path()
-        command = f"{script_path} start"
+        # Use wrapper script for better environment handling
+        import os
+        wrapper_path = os.path.join(os.path.dirname(__file__), 'wrapper.sh')
+        command = f"{wrapper_path} {script_path} start"
         
         # Check if schedule already exists
         existing_jobs = list(self.cron.find_comment(self.script_comment))
