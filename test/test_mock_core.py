@@ -148,6 +148,116 @@ class TestCLICore:
         
         captured = capsys.readouterr()
         assert "✓ Claude Code session started successfully" in captured.out
+    
+    def test_logs_app_success(self, capsys, tmp_path):
+        """Test logs command for app logs"""
+        
+        # Create a temporary log file
+        log_dir = tmp_path / ".config/claude-code-automation/logs"
+        log_dir.mkdir(parents=True)
+        log_file = log_dir / "claude-code-automation.log"
+        log_file.write_text("2025-08-07 16:50:05 - INFO - Test log entry 1\n2025-08-07 16:51:05 - INFO - Test log entry 2\n")
+        
+        with patch('pathlib.Path.home', return_value=tmp_path):
+            with patch('subprocess.run') as mock_run:
+                mock_run.return_value.stdout = "2025-08-07 16:50:05 - INFO - Test log entry 1\n2025-08-07 16:51:05 - INFO - Test log entry 2"
+                mock_run.return_value.returncode = 0
+                
+                with patch('sys.argv', ['claude-code-automation', 'logs', 'app', '50']):
+                    main()
+                
+                mock_run.assert_called_once_with(
+                    ['tail', '-n', '50', str(log_file)],
+                    capture_output=True,
+                    text=True,
+                    check=True
+                )
+        
+        captured = capsys.readouterr()
+        assert "📋 Application logs (last 50 lines)" in captured.out
+        assert "Test log entry" in captured.out
+    
+    def test_logs_launch_success(self, capsys, tmp_path):
+        """Test logs command for LaunchAgent logs"""
+        
+        # Create a temporary log file
+        log_dir = tmp_path / "Library/Logs"
+        log_dir.mkdir(parents=True)
+        log_file = log_dir / "claude-code-automation.out.log"
+        log_file.write_text("✓ Claude Code session started successfully\n")
+        
+        with patch('pathlib.Path.home', return_value=tmp_path):
+            with patch('subprocess.run') as mock_run:
+                mock_run.return_value.stdout = "✓ Claude Code session started successfully"
+                mock_run.return_value.returncode = 0
+                
+                with patch('sys.argv', ['claude-code-automation', 'logs', 'launch']):
+                    main()
+                
+                mock_run.assert_called_once_with(
+                    ['tail', '-n', '50', str(log_file)],
+                    capture_output=True,
+                    text=True,
+                    check=True
+                )
+        
+        captured = capsys.readouterr()
+        assert "📋 LaunchAgent output logs (last 50 lines)" in captured.out
+        assert "Claude Code session started successfully" in captured.out
+    
+    def test_logs_missing_file(self, capsys, tmp_path):
+        """Test logs command when log file doesn't exist"""
+        
+        with patch('pathlib.Path.home', return_value=tmp_path):
+            with patch('sys.argv', ['claude-code-automation', 'logs', 'app']):
+                main()
+        
+        captured = capsys.readouterr()
+        assert "⚠️  Log file not found:" in captured.out
+        assert "No logs have been created yet" in captured.out
+    
+    def test_logs_invalid_type(self, capsys):
+        """Test logs command with invalid log type"""
+        
+        with patch('sys.argv', ['claude-code-automation', 'logs', 'invalid']):
+            with pytest.raises(SystemExit) as exc_info:
+                main()
+        
+        assert exc_info.value.code == 1
+        captured = capsys.readouterr()
+        assert "Error: Invalid log type 'invalid'" in captured.out
+        assert "Valid types: app, launch, error" in captured.out
+    
+    def test_logs_invalid_line_count(self, capsys):
+        """Test logs command with invalid line count"""
+        
+        with patch('sys.argv', ['claude-code-automation', 'logs', 'app', 'not_a_number']):
+            with pytest.raises(SystemExit) as exc_info:
+                main()
+        
+        assert exc_info.value.code == 1
+        captured = capsys.readouterr()
+        assert "Error: Invalid line count 'not_a_number'" in captured.out
+    
+    def test_logs_empty_file(self, capsys, tmp_path):
+        """Test logs command with empty log file"""
+        
+        # Create empty log file
+        log_dir = tmp_path / ".config/claude-code-automation/logs"
+        log_dir.mkdir(parents=True)
+        log_file = log_dir / "claude-code-automation.log"
+        log_file.write_text("")
+        
+        with patch('pathlib.Path.home', return_value=tmp_path):
+            with patch('subprocess.run') as mock_run:
+                mock_run.return_value.stdout = ""
+                mock_run.return_value.returncode = 0
+                
+                with patch('sys.argv', ['claude-code-automation', 'logs', 'app']):
+                    main()
+        
+        captured = capsys.readouterr()
+        assert "📝 Log file is empty" in captured.out
 
 
 if __name__ == '__main__':
